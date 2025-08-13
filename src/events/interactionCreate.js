@@ -272,23 +272,34 @@ module.exports = {
           gender: gender
         });
 
-        // Show personality modal for number input
+        // Show personality list first
+        const { embed, component } = SetupUI.createPersonalitySelect();
+        
+        await interaction.reply({
+          content: '**🎭 Choose Your Personality**\nSee the personality list below and enter the corresponding number:',
+          embeds: [embed],
+          components: [component],
+          flags: [MessageFlags.Ephemeral]
+        });
+        return;
+      }
+
+      // Handle personality number button
+      if (interaction.customId === 'select_personality_number') {
+        // Show modal for number input
         const modal = new ModalBuilder()
           .setCustomId('personality_modal')
-          .setTitle('🎭 Choose Your Personality');
+          .setTitle('🎭 Enter Personality Number');
 
         const personalityInput = new TextInputBuilder()
           .setCustomId('personality_number')
-          .setLabel('Enter personality number (1-28)')
+          .setLabel('Enter the number (1-28) from the list above')
           .setStyle(TextInputStyle.Short)
           .setMinLength(1)
           .setMaxLength(2)
           .setPlaceholder('Enter number (1-28)')
           .setRequired(true);
 
-        // Create embed showing all personalities for reference
-        const embed = SetupUI.createPersonalitySelect().embed;
-        
         modal.addComponents(new ActionRowBuilder().addComponents(personalityInput));
         
         await interaction.showModal(modal);
@@ -341,7 +352,28 @@ module.exports = {
 
           modal.addComponents(new ActionRowBuilder().addComponents(ageInput));
           
-          await interaction.showModal(modal);
+          // For modal chaining, we need to defer and then send a followUp
+          await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+          
+          // Send modal as a followup
+          const followUpMessage = await interaction.followUp({
+            content: 'Please continue with the setup...',
+            flags: [MessageFlags.Ephemeral]
+          });
+          
+          // We'll show the modal via button interaction instead
+          const button = new ButtonBuilder()
+            .setCustomId('continue_to_age')
+            .setLabel('Continue to Age Setup')
+            .setStyle(ButtonStyle.Primary);
+            
+          const row = new ActionRowBuilder().addComponents(button);
+          
+          await interaction.editReply({
+            content: `✅ Personality set to: **${getPersonalityDisplayName(selectedPersonality.value)}**\n\nClick below to continue with setting your companion's age:`,
+            components: [row],
+            flags: [MessageFlags.Ephemeral]
+          });
         } catch (error) {
           console.error('Error in personality modal submission:', error);
           if (!interaction.replied && !interaction.deferred) {
@@ -354,16 +386,18 @@ module.exports = {
         return;
       }
 
-      // Handle personality selection (old method - keeping for compatibility)
-      if (interaction.customId === 'select_personality') {
-        const personality = interaction.values[0];
+      // Handle continue to age button
+      if (interaction.customId === 'continue_to_age') {
         const currentData = userSetupData.get(userId);
         
-        userSetupData.set(userId, {
-          ...currentData,
-          personality: personality
-        });
-
+        if (!currentData || !currentData.personality) {
+          await interaction.reply({
+            content: '❌ Setup data not found. Please start over with /start.',
+            flags: [MessageFlags.Ephemeral]
+          });
+          return;
+        }
+        
         const modal = new ModalBuilder()
           .setCustomId('age_modal')
           .setTitle('🎂 Step 5: Set Age');
@@ -376,7 +410,7 @@ module.exports = {
           .setMaxLength(2)
           .setPlaceholder('Enter age (18-99)')
           .setRequired(true);
-
+          
         modal.addComponents(new ActionRowBuilder().addComponents(ageInput));
         
         await interaction.showModal(modal);
@@ -467,7 +501,7 @@ module.exports = {
 
         try {
           // Create persona in database
-          const persona = await db.createUserPersona(userId, guildId, personaData);
+          const createdPersona = await db.createUserPersona(userId, guildId, personaData);
           
           // Clean up setup data
           userSetupData.delete(userId);
@@ -524,19 +558,48 @@ module.exports = {
           } else if (privacySetting === 'private_channel') {
             // Create or get private channel
             try {
+              let privateChannel;
               if (!privateChannelService) {
                 privateChannelService = new PrivateChannelService(interaction.client);
               }
-              
-              const privateChannel = await privateChannelService.createOrGetPrivateChannel(
+              // First try to get existing channel
+              privateChannel = await privateChannelService.getExistingPrivateChannel(
                 interaction.guild,
                 interaction.user,
                 personaData.name
               );
-              
-              // Update the created persona with the private channel ID
-              await db.updatePersonaChannelId(persona.setupId, privateChannel.id);
-              
+              let channelIsValid = false;
+              if (privateChannel) {
+                // Check channel permissions
+                try {
+                  const permissions = privateChannel.permissionsFor(interaction.client.user);
+                  channelIsValid = permissions?.has(['ViewChannel', 'SendMessages']);
+                  if (!channelIsValid) {
+                    console.log('Existing channel permissions:', permissions?.toArray());
+                  }
+                } catch (permError) {
+                  console.error('Permission check failed:', permError);
+                }
+              }
+              // Create new channel if needed
+              if (!privateChannel || !channelIsValid) {
+                console.log('Creating new channel as fallback');
+                privateChannel = await privateChannelService.createPrivateChannel(
+                  interaction.guild,
+                  interaction.user,
+                  personaData.name
+                );
+              }
+              // Final verification
+              const finalPerms = privateChannel.permissionsFor(interaction.client.user);
+              if (!finalPerms?.has(['ViewChannel', 'SendMessages'])) {
+                throw new Error(`Final permission check failed. Missing: ${
+                  ['ViewChannel', 'SendMessages'].filter(p => !finalPerms.has(p))
+                }`);
+              }
+              // Update database
+              await db.updatePersonaChannelId(createdPersona.setupId, privateChannel.id);
+              // Send welcome message
               const welcomeEmbed = new EmbedBuilder()
                 .setColor('#FF69B4')
                 .setTitle(`🔒 Welcome to your private space with ${personaData.name}!`)
@@ -545,13 +608,24 @@ module.exports = {
                   { name: '💡 How it works', value: 'Simply type any message in this channel and I\'ll respond as your companion!', inline: false }
                 )
                 .setFooter({ text: 'This channel is private and only visible to you' });
-              
-              await privateChannel.send({ embeds: [welcomeEmbed] });
+              await privateChannel.send({ 
+                embeds: [welcomeEmbed],
+                content: `Hey <@${interaction.user.id}>! Your companion is ready!`
+              });
             } catch (error) {
-              console.error('Could not create private channel:', error);
-              // Don't fail the entire setup, just inform the user
+              console.error('Private channel setup failed:', {
+                error: error.message,
+                stack: error.stack,
+                guild: interaction.guildId,
+                channel: typeof privateChannel !== 'undefined' ? privateChannel?.id : undefined
+              });
               await interaction.followUp({
-                content: '⚠️ Your companion was created, but I couldn\'t create a private channel. Please check that I have the necessary permissions to manage channels.',
+                content: `⚠️ Companion created but channel setup failed. Please ensure:
+1. My role is above the channel in the server hierarchy
+2. I have **Manage Channels**, **View Channel**, and **Send Messages** permissions
+3. There are no permission overwrites denying access
+
+Error: ${error.message}`,
                 flags: [MessageFlags.Ephemeral]
               });
             }
@@ -720,7 +794,7 @@ module.exports = {
           const successEmbed = new EmbedBuilder()
             .setColor(0x00FF00)
             .setTitle('✅ Personality Changed!')
-            .setDescription(`**${persona.persona.name}**'s personality has been updated!`)
+            .setDescription(`**${personaData.name}**'s personality has been updated!`)
             .addFields(
               { name: '📋 Previous Personality', value: oldPersonality, inline: true },
               { name: '🆕 New Personality', value: newPersonalityLabel, inline: true }
@@ -794,6 +868,198 @@ module.exports = {
             content: '❌ An error occurred while changing personality. Please try again.',
             flags: [MessageFlags.Ephemeral]
           });
+        }
+        return;
+      }
+
+      // Final setup completion
+      if (interaction.customId === 'complete_setup') {
+        try {
+          const currentData = userSetupData.get(userId);
+          
+          // Validate all required fields
+          if (!currentData || !currentData.name || !currentData.language || !currentData.gender || !currentData.personality || !currentData.age) {
+            await interaction.reply({
+              content: '❌ Setup data incomplete. Please start over with /start.',
+              flags: [MessageFlags.Ephemeral]
+            });
+            return;
+          }
+          
+          // Create persona object with all required fields
+          const personaData = {
+            name: currentData.name,
+            language: currentData.language,
+            gender: currentData.gender,
+            personality: currentData.personality,
+            age: currentData.age,
+            privacy: currentData.privacy || 'dm',
+            relationshipType: currentData.relationshipType || 'friend',
+            mbti: currentData.mbti || null
+          };
+
+          // Create persona in database
+          const createdPersona = await db.createUserPersona(userId, guildId, personaData);
+          
+          // Clean up setup data
+          userSetupData.delete(userId);
+
+          const successEmbed = new EmbedBuilder()
+            .setColor('#00FF00')
+            .setTitle('✅ AI Companion Created!')
+            .setDescription(`**${personaData.name}** is ready to chat with you!`)
+            .addFields(
+              { name: '🎭 Personality', value: personaData.personality, inline: true },
+              { name: '👤 Gender', value: personaData.gender, inline: true },
+              { name: '🎂 Age', value: personaData.age.toString(), inline: true },
+              { name: '🗣️ Language', value: personaData.language, inline: true },
+              { name: '🔒 Privacy', value: personaData.privacy, inline: true },
+              { name: '🧠 MBTI Type', value: personaData.mbti 
+                ? MBTI_TRAITS.find(t => t.value === personaData.mbti)?.label || personaData.mbti.toUpperCase()
+                : 'Not specified', inline: true }
+            );
+
+          // Add chat instruction based on privacy setting
+          if (personaData.privacy === 'public') {
+            successEmbed.addFields({
+              name: '💬 How to chat',
+              value: 'Use `-c your message` in any channel to chat with your companion!',
+              inline: false
+            });
+          } else {
+            successEmbed.setFooter({ text: 'Your companion will message you shortly!' });
+          }
+
+          await interaction.update({
+            embeds: [successEmbed],
+            components: []
+          });
+
+          // Send appropriate welcome message based on privacy setting
+          if (personaData.privacy === 'dm') {
+            // Send DM to user
+            try {
+              const dmChannel = await interaction.user.createDM();
+              const welcomeEmbed = new EmbedBuilder()
+                .setColor('#FF69B4')
+                .setTitle(`💬 ${personaData.name} is here!`)
+                .setDescription(`Hi! I'm **${personaData.name}**, your AI companion! 🌟\n\nYou can chat with me anytime here in DMs. Just type your message - no commands needed!`)
+                .addFields(
+                  { name: '💡 How it works', value: 'Simply type any message and I\'ll respond as your companion!', inline: false }
+                )
+                .setFooter({ text: 'Your conversations are completely private' });
+              
+              await dmChannel.send({ embeds: [welcomeEmbed] });
+            } catch (error) {
+              console.error('Could not send DM:', error);
+            }
+          } else if (personaData.privacy === 'private_channel') {
+            // Create or get private channel
+            let privateChannel = null;
+            try {
+              if (!privateChannelService) {
+                privateChannelService = new PrivateChannelService(interaction.client);
+              }
+              
+              // Create or get the private channel
+              privateChannel = await privateChannelService.createOrGetPrivateChannel(
+                interaction.guild,
+                interaction.user,
+                personaData.name
+              );
+              
+              // Verify channel permissions
+              const permissions = privateChannel.permissionsFor(interaction.client.user);
+              if (!permissions?.has(['ViewChannel', 'SendMessages'])) {
+                console.log('Channel permissions issue:', permissions?.toArray());
+                throw new Error(`Missing permissions: ${
+                  ['ViewChannel', 'SendMessages'].filter(p => !permissions.has(p)).join(', ')
+                }`);
+              }
+              
+              // Update database
+              await db.updatePersonaChannelId(createdPersona.setupId, privateChannel.id);
+              
+              // Send welcome message
+              const welcomeEmbed = new EmbedBuilder()
+                .setColor('#FF69B4')
+                .setTitle(`🔒 Welcome to your private space with ${personaData.name}!`)
+                .setDescription(`Hi! I'm **${personaData.name}**, your AI companion! 🌟\n\nThis is your private channel - only you can see this. Chat with me anytime by typing your messages here!`)
+                .addFields(
+                  { name: '💡 How it works', value: 'Simply type any message in this channel and I\'ll respond as your companion!', inline: false }
+                )
+                .setFooter({ text: 'This channel is private and only visible to you' });
+              
+              await privateChannel.send({ 
+                embeds: [welcomeEmbed],
+                content: `Hey <@${interaction.user.id}>! Your companion is ready!`
+              });
+              
+            } catch (error) {
+              console.error('Private channel setup failed:', {
+                error: error.message,
+                stack: error.stack,
+                guild: interaction.guildId,
+                channel: privateChannel?.id
+              });
+              
+              await interaction.followUp({
+                content: `⚠️ Companion created but channel setup failed. Please ensure:
+1. My role is above the channel in the server hierarchy
+2. I have **Manage Channels**, **View Channel**, and **Send Messages** permissions
+3. There are no permission overwrites denying access
+
+Error: ${error.message}`,
+                flags: [MessageFlags.Ephemeral]
+              });
+            }
+          }
+
+        } catch (error) {
+          console.error('Error creating persona:', error);
+          
+          // Clean up setup data on error
+          userSetupData.delete(userId);
+          
+          // Handle specific limit errors
+          if (error.message.startsWith('LIMIT_EXCEEDED:')) {
+            const [, limitType, message] = error.message.split(':');
+            
+            const limitEmbed = new EmbedBuilder()
+              .setColor('#FF6B35')
+              .setTitle('🚫 Companion Limit Reached')
+              .setDescription(message)
+              .addFields({
+                name: '📊 Your Current Limits',
+                value: `**DM Companions:** 1 maximum\n**Public Companions:** 1 per server\n**Private Channel Companions:** 5 maximum`,
+                inline: false
+              });
+            
+            if (limitType === 'PRIVATE') {
+              limitEmbed.addFields({
+                name: '💡 Manage Your Companions',
+                value: 'Use `/manage` to view and delete existing private channel companions to make room for new ones.',
+                inline: false
+              });
+            } else if (limitType === 'PUBLIC') {
+              limitEmbed.addFields({
+                name: '💡 Alternative Options',
+                value: 'You can:\n• Use `/change-personality` to modify your existing companion\n• Use `/reset` to delete and recreate\n• Create a private channel companion instead',
+                inline: false
+              });
+            }
+            
+            await interaction.reply({
+              embeds: [limitEmbed],
+              flags: [MessageFlags.Ephemeral]
+            });
+          } else {
+            // Generic error handling
+            await interaction.reply({
+              content: '❌ An error occurred while creating your companion. Please try again.',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
         }
         return;
       }

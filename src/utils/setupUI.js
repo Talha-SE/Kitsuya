@@ -265,56 +265,34 @@ class SetupUI {
   }
 
   static createPersonalitySelect() {
+    let personalityList = '';
+    let categoryCount = 0;
+    
+    for (const [category, personalities] of Object.entries(PERSONALITY_CATEGORIES)) {
+      personalityList += `\n**${category}**\n`;
+      
+      personalities.forEach((personality, index) => {
+        const num = categoryCount * 4 + index + 1;
+        personalityList += `${num}. ${personality.emoji} ${personality.label}: ${personality.description}\n`;
+      });
+      
+      categoryCount++;
+    }
+    
     const embed = new EmbedBuilder()
-      .setColor(0xFF1493)
-      .setTitle('🎭 Step 4: Choose Your Companion\'s Personality')
-      .setDescription(`Select from our specialized personality categories by typing the **number** of your choice:
-
-**🎉 Fun & Social Personalities**
-1. **Playful Banter Buddy** - Witty, light-hearted, joking responses
-2. **Friendly Flirt** - Light teasing and romantic compliments
-3. **Storyteller** - Interactive stories, adventures, and role-plays
-4. **Gaming Partner** - Gaming tips and text-based mini-games
-
-**📚 Educational Personalities**
-5. **The Professor** - Explains academic topics in detail
-6. **Language Tutor** - Helps learn and practice languages
-7. **Skill Coach** - Teaches coding, design, music step-by-step
-8. **Trivia Master** - Quizzes and knowledge challenges
-
-**💼 Business & Finance Personalities**
-9. **Entrepreneur Mentor** - Business guidance and wisdom
-10. **Trading Analyst** - Forex, stocks, crypto strategies
-11. **Career Coach** - Resumes, interviews, career planning
-12. **Marketing Guru** - Social media growth and branding
-
-**🌟 Health & Well-Being Personalities**
-13. **Therapist/Listener** - Emotional support and reflection
-14. **Life Coach** - Motivation, goals, and progress tracking
-15. **Fitness Trainer** - Workout routines and diet plans
-16. **Mindfulness Guide** - Relaxation and meditation
-
-**🏠 Lifestyle & Daily Help Personalities**
-17. **Personal Assistant** - To-do lists, reminders, schedules
-18. **Travel Guide** - Destinations and itinerary planning
-19. **Chef Mode** - Recipes and cooking tips
-20. **Style Consultant** - Outfit and grooming advice
-
-**🎭 Entertainment Personalities**
-21. **Movie Critic** - Film reviews and show recommendations
-22. **Music Buddy** - Playlists and artist discussions
-23. **Book Club Partner** - Literature discussions and recommendations
-24. **Joke Machine** - Jokes, puns, and one-liners
-
-**🔮 Experimental / Unique Personalities**
-25. **Debate Partner** - Logical arguments on any topic
-26. **Philosopher** - Deep life questions and ethics
-27. **Time-Travel Historian** - Historical perspectives from different eras
-28. **Mystery Oracle** - Cryptic, fortune-cookie style responses
-
-**Please type the number (1-28) of your preferred personality:**`);
-
-    return { embed };
+      .setColor('#FF69B4')
+      .setTitle('🎭 Available Personalities')
+      .setDescription(`Choose your companion's personality by entering the corresponding number (1-28):\n${personalityList}`);
+    
+    // Add button to enter number
+    const button = new ButtonBuilder()
+      .setCustomId('select_personality_number')
+      .setLabel('Enter Personality Number')
+      .setStyle(ButtonStyle.Primary);
+    
+    const component = new ActionRowBuilder().addComponents(button);
+    
+    return { embed, component };
   }
 
   static createRelationshipSelect() {
@@ -531,7 +509,7 @@ You can skip this step if you prefer a surprise!`);
         },
         {
           name: '💬 Chat Methods',
-          value: '• **DM Only**: Chat privately in DMs\n• **Private Channel**: Hidden server channel\n• **Public**: Use `-c message` in any channel',
+          value: '• **DM Only**: Chat privately in DMs\n• **Private Channel**: Hidden server channel\n• **Public Mode**: Use `-c message` in any channel\n• **Direct Messages**: Always work regardless of mode!',
           inline: false
         }
       )
@@ -612,7 +590,7 @@ You can skip this step if you prefer a surprise!`);
         },
         {
           name: '💬 Chatting',
-          value: '• **DM Only**: Just type in DMs - no commands needed!\n• **Private Channel**: Type in your private channel\n• **Public Mode**: Use `-c your message` in any channel\n• **Direct Messages**: Always work regardless of mode!',
+          value: '• **DM Only**: Just type in DMs - no commands needed!\n• **Private Channel**: Type in your private channel\n• **Public Mode**: Use `-c message` in any channel\n• **Direct Messages**: Always work regardless of mode!',
           inline: false
         },
         {
