@@ -2,22 +2,44 @@ const { UserPersona, ChatMessage } = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
 
 class DatabaseService {
-  // Create new user persona (allows multiple per user)
+  // Create new user persona with limits enforcement
   async createUserPersona(userId, guildId, personaData) {
     try {
-      // If creating a DM personality, check if user already has one
+      // Check limits based on privacy setting
       if (personaData.privacySetting === 'dm') {
+        // DM setup: Max 1 per user
         const existingInboxPersona = await UserPersona.findOne({ 
           userId, 
           isInboxPersonality: true 
         });
         
         if (existingInboxPersona) {
-          // Update existing inbox personality
+          // Update existing inbox personality instead of creating new
           existingInboxPersona.persona = personaData;
           existingInboxPersona.lastUpdated = new Date();
           await existingInboxPersona.save();
           return existingInboxPersona;
+        }
+      } else if (personaData.privacySetting === 'public') {
+        // Public setup: Max 1 per user per server
+        const existingPublicPersona = await UserPersona.findOne({
+          userId,
+          guildId,
+          'persona.privacySetting': 'public'
+        });
+        
+        if (existingPublicPersona) {
+          throw new Error(`LIMIT_EXCEEDED:PUBLIC:You already have a public AI companion in this server. Use \`/change-personality\` to modify it, or \`/reset\` to start over.`);
+        }
+      } else if (personaData.privacySetting === 'private_channel') {
+        // Private channel setup: Max 5 per user
+        const existingPrivatePersonas = await UserPersona.countDocuments({
+          userId,
+          'persona.privacySetting': 'private_channel'
+        });
+        
+        if (existingPrivatePersonas >= 5) {
+          throw new Error(`LIMIT_EXCEEDED:PRIVATE:You already have the maximum number of private channel companions (5). Use \`/manage\` to delete some before creating new ones.`);
         }
       }
       
@@ -33,6 +55,7 @@ class DatabaseService {
       });
       
       await newPersona.save();
+      console.log(`Created new ${personaData.privacySetting} persona for user ${userId}: ${personaData.name}`);
       return newPersona;
     } catch (error) {
       console.error('Error creating user persona:', error);
@@ -43,10 +66,27 @@ class DatabaseService {
   // Get user's inbox (DM) persona
   async getInboxPersona(userId) {
     try {
-      return await UserPersona.findOne({ 
+      let inboxPersona = await UserPersona.findOne({ 
         userId, 
         isInboxPersonality: true 
       });
+      
+      // If no inbox persona found, check for old DM personas and auto-fix
+      if (!inboxPersona) {
+        const dmPersona = await UserPersona.findOne({
+          userId,
+          'persona.privacySetting': 'dm'
+        });
+        
+        if (dmPersona) {
+          console.log(`Auto-fixing inbox persona for user ${userId}: marking ${dmPersona.persona.name} as inbox`);
+          dmPersona.isInboxPersonality = true;
+          await dmPersona.save();
+          inboxPersona = dmPersona;
+        }
+      }
+      
+      return inboxPersona;
     } catch (error) {
       console.error('Error fetching inbox persona:', error);
       return null;
@@ -80,6 +120,53 @@ class DatabaseService {
       return await UserPersona.findOne({ userId, guildId });
     } catch (error) {
       console.error('Error fetching user persona:', error);
+      return null;
+    }
+  }
+
+  // Get user persona limits and current counts
+  async getUserPersonaLimits(userId, guildId = null) {
+    try {
+      const query = { userId };
+      if (guildId) query.guildId = guildId;
+      
+      const allPersonas = await UserPersona.find(query);
+      
+      const counts = {
+        dm: allPersonas.filter(p => p.persona.privacySetting === 'dm').length,
+        public: guildId ? allPersonas.filter(p => p.persona.privacySetting === 'public').length : 0,
+        private_channel: allPersonas.filter(p => p.persona.privacySetting === 'private_channel').length,
+        total: allPersonas.length
+      };
+      
+      const limits = {
+        dm: 1,
+        public: 1, // Per server
+        private_channel: 5,
+        total: 7 // 1 DM + 1 Public + 5 Private
+      };
+      
+      const available = {
+        dm: Math.max(0, limits.dm - counts.dm),
+        public: guildId ? Math.max(0, limits.public - counts.public) : 0,
+        private_channel: Math.max(0, limits.private_channel - counts.private_channel)
+      };
+      
+      return {
+        counts,
+        limits,
+        available,
+        personas: allPersonas.map(p => ({
+          setupId: p.setupId,
+          name: p.persona.name,
+          personality: p.persona.personality,
+          privacySetting: p.persona.privacySetting,
+          guildId: p.guildId,
+          createdAt: p.createdAt
+        }))
+      };
+    } catch (error) {
+      console.error('Error fetching user persona limits:', error);
       return null;
     }
   }

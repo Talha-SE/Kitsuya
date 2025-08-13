@@ -26,6 +26,25 @@ module.exports = {
 
       // Handle welcome message buttons
       if (interaction.customId === 'welcome_start_setup') {
+        // Check current persona limits before starting setup
+        const limits = await db.getUserPersonaLimits(userId, guildId);
+        
+        if (limits && limits.available.dm === 0 && limits.available.public === 0 && limits.available.private_channel === 0) {
+          const maxLimitEmbed = new EmbedBuilder()
+            .setColor('#FF4444')
+            .setTitle('🚫 Maximum Companions Reached')
+            .setDescription('You\'ve reached the maximum number of AI companions allowed!')
+            .addFields(
+              { name: '📊 Your Companions', value: `**DM:** ${limits.counts.dm}/1\n**Public (this server):** ${limits.counts.public}/1\n**Private Channels:** ${limits.counts.private_channel}/5`, inline: false },
+              { name: '💡 To Create New Companions', value: 'Use `/manage` to delete existing companions first, or `/change-personality` to modify existing ones.', inline: false }
+            );
+          
+          return await interaction.reply({
+            embeds: [maxLimitEmbed],
+            flags: [MessageFlags.Ephemeral]
+          });
+        }
+        
         const { embed, component } = SetupUI.createLanguageSelect();
         userSetupData.set(userId, { step: 'language' });
         
@@ -346,12 +365,12 @@ module.exports = {
               
               const privateChannel = await privateChannelService.createOrGetPrivateChannel(
                 interaction.guild,
-                userId,
+                interaction.user,
                 personaData.name
               );
               
-              // Update persona with private channel ID
-              await db.updateUserPersona(userId, guildId, { privateChannelId: privateChannel.id });
+              // Update the created persona with the private channel ID
+              await db.updatePersonaChannelId(persona.setupId, privateChannel.id);
               
               const welcomeEmbed = new EmbedBuilder()
                 .setColor('#FF69B4')
@@ -365,15 +384,59 @@ module.exports = {
               await privateChannel.send({ embeds: [welcomeEmbed] });
             } catch (error) {
               console.error('Could not create private channel:', error);
+              // Don't fail the entire setup, just inform the user
+              await interaction.followUp({
+                content: '⚠️ Your companion was created, but I couldn\'t create a private channel. Please check that I have the necessary permissions to manage channels.',
+                flags: [MessageFlags.Ephemeral]
+              });
             }
           }
 
         } catch (error) {
           console.error('Error creating persona:', error);
-          await interaction.reply({
-            content: '❌ An error occurred while creating your companion. Please try again.',
-            flags: [MessageFlags.Ephemeral]
-          });
+          
+          // Clean up setup data on error
+          userSetupData.delete(userId);
+          
+          // Handle specific limit errors
+          if (error.message.startsWith('LIMIT_EXCEEDED:')) {
+            const [, limitType, message] = error.message.split(':');
+            
+            const limitEmbed = new EmbedBuilder()
+              .setColor('#FF6B35')
+              .setTitle('🚫 Companion Limit Reached')
+              .setDescription(message)
+              .addFields({
+                name: '📊 Your Current Limits',
+                value: `**DM Companions:** 1 maximum\n**Public Companions:** 1 per server\n**Private Channel Companions:** 5 maximum`,
+                inline: false
+              });
+            
+            if (limitType === 'PRIVATE') {
+              limitEmbed.addFields({
+                name: '💡 Manage Your Companions',
+                value: 'Use `/manage` to view and delete existing private channel companions to make room for new ones.',
+                inline: false
+              });
+            } else if (limitType === 'PUBLIC') {
+              limitEmbed.addFields({
+                name: '💡 Alternative Options',
+                value: 'You can:\n• Use `/change-personality` to modify your existing companion\n• Use `/reset` to delete and recreate\n• Create a private channel companion instead',
+                inline: false
+              });
+            }
+            
+            await interaction.reply({
+              embeds: [limitEmbed],
+              flags: [MessageFlags.Ephemeral]
+            });
+          } else {
+            // Generic error handling
+            await interaction.reply({
+              content: '❌ An error occurred while creating your companion. Please try again.',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
         }
         return;
       }

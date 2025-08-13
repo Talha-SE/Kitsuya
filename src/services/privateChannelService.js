@@ -92,6 +92,31 @@ class PrivateChannelService {
     }
   }
 
+  async createOrGetPrivateChannel(guild, user, companionName) {
+    try {
+      // Check if user already has a private channel for this companion
+      const channelName = `${companionName.toLowerCase().replace(/\s+/g, '-')}-${user.username}`;
+      
+      // Look for existing channel
+      const existingChannel = guild.channels.cache.find(
+        channel => channel.name === channelName && channel.type === ChannelType.GuildText
+      );
+      
+      if (existingChannel) {
+        console.log(`Found existing private channel: ${existingChannel.name}`);
+        return existingChannel;
+      }
+      
+      // Create new channel if none exists
+      console.log(`Creating new private channel for ${user.username} and ${companionName}`);
+      return await this.createPrivateChannel(guild, user, companionName);
+      
+    } catch (error) {
+      console.error('Error in createOrGetPrivateChannel:', error);
+      throw error;
+    }
+  }
+
   async deletePrivateChannel(channelId) {
     try {
       const channel = await this.client.channels.fetch(channelId);

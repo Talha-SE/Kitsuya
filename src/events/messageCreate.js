@@ -31,9 +31,11 @@ module.exports = {
     if (isDM) {
       // For DMs, use the inbox persona
       persona = await db.getInboxPersona(userId);
+      console.log(`DM from ${message.author.username}: Inbox persona found:`, !!persona);
     } else {
       // For guild messages, get persona for this guild/channel
       persona = await db.getUserPersona(userId, guildId, message.channel.id);
+      console.log(`Guild message from ${message.author.username}: Persona found:`, !!persona);
     }
     
     // Check if this is a private channel for this user
@@ -65,11 +67,16 @@ module.exports = {
       shouldRespond = botMentioned || isDM;
     }
 
-    if (!shouldRespond) return;
+    if (!shouldRespond) {
+      console.log(`Not responding to ${message.author.username}: isDM=${isDM}, privacyMode=${privacyMode}, shouldRespond=${shouldRespond}`);
+      return;
+    }
 
     try {
       // Check if user has a persona
       if (!persona) {
+        console.log(`No persona found for ${message.author.username} (${userId}) in ${isDM ? 'DM' : 'guild ' + guildId}`);
+        
         const embed = new EmbedBuilder()
           .setColor(0xFF4444)
           .setTitle('🤖 No AI Companion Found')
@@ -82,6 +89,8 @@ module.exports = {
         
         return await message.reply({ embeds: [embed] });
       }
+
+      console.log(`Processing message from ${message.author.username} with persona: ${persona.persona.name} (${persona.persona.personality})`);
 
       // Show typing indicator
       await message.channel.sendTyping();
@@ -118,15 +127,47 @@ module.exports = {
         });
       }
       
-      // Generate AI response
-      const response = await mistral.generateResponse(
-        userMessage,
-        persona.persona,
-        [...contextMessages, ...recentHistory]
-      );
+      // Generate AI response with retry logic
+      let response = null;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      // Save the conversation linked to this specific persona
-      await db.saveChatMessage(userId, effectiveGuildId, userMessage, response, setupId);
+      // Save the user message first (even if AI fails)
+      const savedMessage = await db.saveChatMessage(userId, effectiveGuildId, userMessage, 'Processing...', setupId);
+      console.log(`Saved user message: "${userMessage}"`);
+      
+      while (!response && retryCount < maxRetries) {
+        try {
+          console.log(`Attempting AI response (attempt ${retryCount + 1}/${maxRetries})`);
+          response = await mistral.generateResponse(
+            userMessage,
+            persona.persona,
+            [...contextMessages, ...recentHistory]
+          );
+          console.log(`AI response generated successfully: "${response.substring(0, 100)}..."`);
+        } catch (error) {
+          retryCount++;
+          console.error(`AI generation failed (attempt ${retryCount}):`, error.message);
+          
+          if (retryCount < maxRetries) {
+            console.log(`Retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Show typing again to let user know we're still working
+            await message.channel.sendTyping();
+          } else {
+            console.error(`Max retries reached for AI generation`);
+            // Fallback response
+            response = `I'm sorry, I'm having trouble connecting to my AI brain right now 😅 Please try again in a moment!`;
+          }
+        }
+      }
+      
+      // Update the saved message with the actual response
+      if (savedMessage) {
+        savedMessage.response = response;
+        await savedMessage.save();
+        console.log(`Updated saved message with AI response`);
+      }
       
       // Create response embed
       const embed = new EmbedBuilder()
