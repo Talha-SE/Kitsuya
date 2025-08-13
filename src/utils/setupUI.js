@@ -37,28 +37,102 @@ const PRIVACY_OPTIONS = [
 
 const GENDERS = [
   { label: 'Female', value: 'female', emoji: '♀️' },
-  { label: 'Male', value: 'male', emoji: '♂️' },
-  { label: 'Non-Binary', value: 'non-binary', emoji: '⚧️' },
-  { label: 'Other', value: 'other', emoji: '🌈' }
+  { label: 'Male', value: 'male', emoji: '♂️' }
 ];
 
-const PERSONALITIES = [
-  { label: 'Friendly & Cheerful', value: 'friendly', emoji: '😊', description: 'Warm, optimistic, and encouraging' },
-  { label: 'Witty & Sarcastic', value: 'witty', emoji: '😏', description: 'Sharp humor with playful teasing' },
-  { label: 'Caring & Nurturing', value: 'caring', emoji: '💕', description: 'Supportive, empathetic, and protective' },
-  { label: 'Flirty & Playful', value: 'flirty', emoji: '😘', description: 'Charming, teasing, and romantic' },
-  { label: 'Mysterious & Intriguing', value: 'mysterious', emoji: '🌙', description: 'Enigmatic with hidden depths' },
-  { label: 'Confident & Bold', value: 'confident', emoji: '💪', description: 'Assertive, decisive, and fearless' },
-  { label: 'Shy & Sweet', value: 'shy', emoji: '🙈', description: 'Gentle, modest, and endearing' },
-  { label: 'Intellectual & Wise', value: 'intellectual', emoji: '🤓', description: 'Thoughtful, knowledgeable, and insightful' },
-  { label: 'Adventurous & Wild', value: 'adventurous', emoji: '🌟', description: 'Spontaneous, daring, and free-spirited' },
-  { label: 'Calm & Zen', value: 'calm', emoji: '🧘', description: 'Peaceful, balanced, and meditative' },
-  { label: 'Tsundere', value: 'tsundere', emoji: '😤', description: 'Initially cold but secretly caring' },
-  { label: 'Dominant & Assertive', value: 'dominant', emoji: '👑', description: 'Takes charge and leads confidently' },
-  { label: 'Submissive & Gentle', value: 'submissive', emoji: '🥺', description: 'Soft-spoken and yielding' },
-  { label: 'Yandere', value: 'yandere', emoji: '😈', description: 'Obsessively devoted and protective' },
-  { label: 'Custom Personality', value: 'custom', emoji: '✨', description: 'Define your own unique traits' }
-];
+const PERSONALITY_CATEGORIES = {
+  'Fun & Social': [
+    { label: 'Playful Banter Buddy', value: 'playful_banter', emoji: '😄', description: 'Witty, light-hearted, joking responses, ideal for killing time' },
+    { label: 'Friendly Flirt', value: 'friendly_flirt', emoji: '�', description: 'Light teasing and romantic compliments (non-explicit for halal safety)' },
+    { label: 'Storyteller', value: 'storyteller', emoji: '📚', description: 'Makes up interactive stories, adventures, and role-plays' },
+    { label: 'Gaming Partner', value: 'gaming_partner', emoji: '🎮', description: 'Talks about games, gives tips, and plays text-based mini-games' }
+  ],
+  'Educational': [
+    { label: 'The Professor', value: 'professor', emoji: '�‍🏫', description: 'Explains academic topics in detail with expertise' },
+    { label: 'Language Tutor', value: 'language_tutor', emoji: '🗣️', description: 'Helps learn and practice new languages with patience' },
+    { label: 'Skill Coach', value: 'skill_coach', emoji: '🎯', description: 'Teaches coding, design, music, or other skills step-by-step' },
+    { label: 'Trivia Master', value: 'trivia_master', emoji: '🧠', description: 'Runs quizzes and knowledge challenges with fun facts' }
+  ],
+  'Business & Finance': [
+    { label: 'Entrepreneur Mentor', value: 'entrepreneur_mentor', emoji: '💼', description: 'Guides you on starting/running a business with wisdom' },
+    { label: 'Trading Analyst', value: 'trading_analyst', emoji: '�', description: 'Discusses Forex, stocks, crypto strategies and market analysis' },
+    { label: 'Career Coach', value: 'career_coach', emoji: '�', description: 'Helps with resumes, interviews, and career planning' },
+    { label: 'Marketing Guru', value: 'marketing_guru', emoji: '📱', description: 'Gives social media growth and branding tips' }
+  ],
+  'Health & Well-Being': [
+    { label: 'Therapist/Listener', value: 'therapist', emoji: '🤗', description: 'Provides emotional support and reflective conversation' },
+    { label: 'Life Coach', value: 'life_coach', emoji: '⭐', description: 'Motivates, sets goals, and tracks progress with encouragement' },
+    { label: 'Fitness Trainer', value: 'fitness_trainer', emoji: '💪', description: 'Suggests workout routines and diet plans with motivation' },
+    { label: 'Mindfulness Guide', value: 'mindfulness_guide', emoji: '🧘', description: 'Leads relaxation, meditation, and focus exercises' }
+  ],
+  'Lifestyle & Daily Help': [
+    { label: 'Personal Assistant', value: 'personal_assistant', emoji: '📝', description: 'Manages to-do lists, reminders, and schedules efficiently' },
+    { label: 'Travel Guide', value: 'travel_guide', emoji: '✈️', description: 'Suggests destinations, makes itineraries with local insights' },
+    { label: 'Chef Mode', value: 'chef_mode', emoji: '👨‍🍳', description: 'Shares recipes and cooking tips with culinary passion' },
+    { label: 'Style Consultant', value: 'style_consultant', emoji: '👗', description: 'Advises on outfits and grooming with fashion sense' }
+  ],
+  'Entertainment': [
+    { label: 'Movie Critic', value: 'movie_critic', emoji: '🎬', description: 'Reviews films and recommends shows with cinematic knowledge' },
+    { label: 'Music Buddy', value: 'music_buddy', emoji: '🎵', description: 'Suggests playlists and discusses artists with musical passion' },
+    { label: 'Book Club Partner', value: 'book_club', emoji: '📖', description: 'Talks about literature and suggests reads with literary insight' },
+    { label: 'Joke Machine', value: 'joke_machine', emoji: '😂', description: 'Delivers jokes, puns, and one-liners with perfect timing' }
+  ],
+  'Experimental / Unique': [
+    { label: 'Debate Partner', value: 'debate_partner', emoji: '⚖️', description: 'Argues logically on any topic for practice and growth' },
+    { label: 'Philosopher', value: 'philosopher', emoji: '🤔', description: 'Discusses deep life questions and ethics with wisdom' },
+    { label: 'Time-Travel Historian', value: 'historian', emoji: '⏰', description: 'Pretends to come from a different era with historical knowledge' },
+    { label: 'Mystery Oracle', value: 'mystery_oracle', emoji: '🔮', description: 'Gives cryptic, fortune-cookie style responses with mystique' }
+  ]
+};
+
+// Flatten all personalities for the select menu
+const PERSONALITIES = Object.values(PERSONALITY_CATEGORIES).flat();
+
+// Personality number mapping for user input
+const PERSONALITY_NUMBER_MAP = {
+  1: 'playful_banter',
+  2: 'friendly_flirt', 
+  3: 'storyteller',
+  4: 'gaming_partner',
+  5: 'professor',
+  6: 'language_tutor',
+  7: 'skill_coach',
+  8: 'trivia_master',
+  9: 'entrepreneur_mentor',
+  10: 'trading_analyst',
+  11: 'career_coach',
+  12: 'marketing_guru',
+  13: 'therapist',
+  14: 'life_coach',
+  15: 'fitness_trainer',
+  16: 'mindfulness_guide',
+  17: 'personal_assistant',
+  18: 'travel_guide',
+  19: 'chef_mode',
+  20: 'style_consultant',
+  21: 'movie_critic',
+  22: 'music_buddy',
+  23: 'book_club',
+  24: 'joke_machine',
+  25: 'debate_partner',
+  26: 'philosopher',
+  27: 'historian',
+  28: 'mystery_oracle'
+};
+
+// Function to get personality by number
+function getPersonalityByNumber(number) {
+  const personalityValue = PERSONALITY_NUMBER_MAP[number];
+  if (!personalityValue) return null;
+  
+  return PERSONALITIES.find(p => p.value === personalityValue);
+}
+
+// Function to get personality display name by value
+function getPersonalityDisplayName(value) {
+  const personality = PERSONALITIES.find(p => p.value === value);
+  return personality ? personality.label : value.replace(/_/g, ' ');
+}
 
 const RELATIONSHIP_TYPES = [
   { label: '💕 Romantic Partner', value: 'romantic', description: 'Loving, intimate, and devoted companion' },
@@ -82,54 +156,24 @@ const AGE_RANGES = [
   { label: '41+ (Mature Adult)', value: '41+', description: 'Sophisticated and worldly' }
 ];
 
-const CHARACTERISTICS = [
-  // Physical Traits
-  { category: 'Physical', label: 'Tall', value: 'tall' },
-  { category: 'Physical', label: 'Short', value: 'short' },
-  { category: 'Physical', label: 'Athletic', value: 'athletic' },
-  { category: 'Physical', label: 'Curvy', value: 'curvy' },
-  { category: 'Physical', label: 'Petite', value: 'petite' },
-  { category: 'Physical', label: 'Strong', value: 'strong' },
-  
-  // Hair
-  { category: 'Hair', label: 'Long Hair', value: 'long-hair' },
-  { category: 'Hair', label: 'Short Hair', value: 'short-hair' },
-  { category: 'Hair', label: 'Curly Hair', value: 'curly-hair' },
-  { category: 'Hair', label: 'Dark Hair', value: 'dark-hair' },
-  { category: 'Hair', label: 'Light Hair', value: 'light-hair' },
-  { category: 'Hair', label: 'Colorful Hair', value: 'colorful-hair' },
-  
-  // Eyes
-  { category: 'Eyes', label: 'Blue Eyes', value: 'blue-eyes' },
-  { category: 'Eyes', label: 'Brown Eyes', value: 'brown-eyes' },
-  { category: 'Eyes', label: 'Green Eyes', value: 'green-eyes' },
-  { category: 'Eyes', label: 'Hazel Eyes', value: 'hazel-eyes' },
-  
-  // Style
-  { category: 'Style', label: 'Casual Style', value: 'casual' },
-  { category: 'Style', label: 'Elegant Style', value: 'elegant' },
-  { category: 'Style', label: 'Gothic Style', value: 'gothic' },
-  { category: 'Style', label: 'Sporty Style', value: 'sporty' },
-  { category: 'Style', label: 'Vintage Style', value: 'vintage' },
-  { category: 'Style', label: 'Modern Style', value: 'modern' },
-  
-  // Personality Traits
-  { category: 'Personality', label: 'Outgoing', value: 'outgoing' },
-  { category: 'Personality', label: 'Introverted', value: 'introverted' },
-  { category: 'Personality', label: 'Artistic', value: 'artistic' },
-  { category: 'Personality', label: 'Sporty', value: 'sporty' },
-  { category: 'Personality', label: 'Bookish', value: 'bookish' },
-  { category: 'Personality', label: 'Tech-Savvy', value: 'tech-savvy' },
-  
-  // Hobbies
-  { category: 'Hobbies', label: 'Gaming', value: 'gaming' },
-  { category: 'Hobbies', label: 'Music', value: 'music' },
-  { category: 'Hobbies', label: 'Art', value: 'art' },
-  { category: 'Hobbies', label: 'Cooking', value: 'cooking' },
-  { category: 'Hobbies', label: 'Travel', value: 'travel' },
-  { category: 'Hobbies', label: 'Reading', value: 'reading' },
-  { category: 'Hobbies', label: 'Fitness', value: 'fitness' },
-  { category: 'Hobbies', label: 'Photography', value: 'photography' }
+const MBTI_TRAITS = [
+  // MBTI Personality Types
+  { label: 'INTJ - The Architect', value: 'intj', description: 'Imaginative and strategic thinkers with a plan for everything' },
+  { label: 'INTP - The Thinker', value: 'intp', description: 'Innovative inventors with an unquenchable thirst for knowledge' },
+  { label: 'ENTJ - The Commander', value: 'entj', description: 'Bold, imaginative strong-willed leaders' },
+  { label: 'ENTP - The Debater', value: 'entp', description: 'Smart and curious thinkers who cannot resist an intellectual challenge' },
+  { label: 'INFJ - The Advocate', value: 'infj', description: 'Quiet and mystical, yet very inspiring and tireless idealists' },
+  { label: 'INFP - The Mediator', value: 'infp', description: 'Poetic, kind and altruistic people, always eager to help a good cause' },
+  { label: 'ENFJ - The Protagonist', value: 'enfj', description: 'Charismatic and inspiring leaders, able to mesmerize listeners' },
+  { label: 'ENFP - The Campaigner', value: 'enfp', description: 'Enthusiastic, creative and sociable free spirits' },
+  { label: 'ISTJ - The Logistician', value: 'istj', description: 'Practical and fact-minded, reliable and responsible' },
+  { label: 'ISFJ - The Protector', value: 'isfj', description: 'Warm-hearted and dedicated, always ready to protect their loved ones' },
+  { label: 'ESTJ - The Executive', value: 'estj', description: 'Excellent administrators, unsurpassed at managing things or people' },
+  { label: 'ESFJ - The Consul', value: 'esfj', description: 'Extraordinarily caring, social and popular people, always eager to help' },
+  { label: 'ISTP - The Virtuoso', value: 'istp', description: 'Bold and practical experimenters, masters of all kinds of tools' },
+  { label: 'ISFP - The Adventurer', value: 'isfp', description: 'Flexible and charming artists, always ready to explore new possibilities' },
+  { label: 'ESTP - The Entrepreneur', value: 'estp', description: 'Smart, energetic and very perceptive people, truly enjoy living on the edge' },
+  { label: 'ESFP - The Entertainer', value: 'esfp', description: 'Spontaneous, energetic and enthusiastic people - life is never boring around them' }
 ];
 
 class SetupUI {
@@ -178,21 +222,26 @@ class SetupUI {
     return { embed };
   }
 
-  static createLanguageSelect() {
+  static createLanguageInput() {
     const embed = new EmbedBuilder()
       .setColor(0xFF1493)
-      .setTitle('🌍 Step 2: Select Language')
-      .setDescription('What language should your AI companion speak?');
+      .setTitle('🌍 Step 1: Choose Language')
+      .setDescription(`What language should your AI companion speak?
+      
+**Popular Languages:**
+• English, Spanish, French, German, Italian
+• Chinese, Japanese, Korean, Hindi, Arabic
+• Portuguese, Russian, Dutch, Polish, Turkish
+• Or any other language you prefer!
+      
+**Please type your preferred language now:**`)
+      .addFields({
+        name: '💡 Examples',
+        value: 'English, Spanish, French, Japanese, Hindi, Arabic, etc.',
+        inline: false
+      });
 
-    const select = new ActionRowBuilder()
-      .addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('select_language')
-          .setPlaceholder('Choose a language...')
-          .addOptions(LANGUAGES)
-      );
-
-    return { embed, component: select };
+    return { embed };
   }
 
   static createGenderSelect() {
@@ -218,25 +267,54 @@ class SetupUI {
   static createPersonalitySelect() {
     const embed = new EmbedBuilder()
       .setColor(0xFF1493)
-      .setTitle('🎭 Step 4: Choose Personality')
-      .setDescription('What kind of personality should your companion have?');
+      .setTitle('🎭 Step 4: Choose Your Companion\'s Personality')
+      .setDescription(`Select from our specialized personality categories by typing the **number** of your choice:
 
-    // Split personalities into chunks of 25 for Discord limit
-    const personalityOptions = PERSONALITIES.slice(0, 25).map(personality => ({
-      label: `${personality.emoji} ${personality.label}`,
-      value: personality.value,
-      description: personality.description
-    }));
+**🎉 Fun & Social Personalities**
+1. **Playful Banter Buddy** - Witty, light-hearted, joking responses
+2. **Friendly Flirt** - Light teasing and romantic compliments
+3. **Storyteller** - Interactive stories, adventures, and role-plays
+4. **Gaming Partner** - Gaming tips and text-based mini-games
 
-    const select = new ActionRowBuilder()
-      .addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('select_personality')
-          .setPlaceholder('Choose personality type...')
-          .addOptions(personalityOptions)
-      );
+**📚 Educational Personalities**
+5. **The Professor** - Explains academic topics in detail
+6. **Language Tutor** - Helps learn and practice languages
+7. **Skill Coach** - Teaches coding, design, music step-by-step
+8. **Trivia Master** - Quizzes and knowledge challenges
 
-    return { embed, components: [select] };
+**💼 Business & Finance Personalities**
+9. **Entrepreneur Mentor** - Business guidance and wisdom
+10. **Trading Analyst** - Forex, stocks, crypto strategies
+11. **Career Coach** - Resumes, interviews, career planning
+12. **Marketing Guru** - Social media growth and branding
+
+**🌟 Health & Well-Being Personalities**
+13. **Therapist/Listener** - Emotional support and reflection
+14. **Life Coach** - Motivation, goals, and progress tracking
+15. **Fitness Trainer** - Workout routines and diet plans
+16. **Mindfulness Guide** - Relaxation and meditation
+
+**🏠 Lifestyle & Daily Help Personalities**
+17. **Personal Assistant** - To-do lists, reminders, schedules
+18. **Travel Guide** - Destinations and itinerary planning
+19. **Chef Mode** - Recipes and cooking tips
+20. **Style Consultant** - Outfit and grooming advice
+
+**🎭 Entertainment Personalities**
+21. **Movie Critic** - Film reviews and show recommendations
+22. **Music Buddy** - Playlists and artist discussions
+23. **Book Club Partner** - Literature discussions and recommendations
+24. **Joke Machine** - Jokes, puns, and one-liners
+
+**🔮 Experimental / Unique Personalities**
+25. **Debate Partner** - Logical arguments on any topic
+26. **Philosopher** - Deep life questions and ethics
+27. **Time-Travel Historian** - Historical perspectives from different eras
+28. **Mystery Oracle** - Cryptic, fortune-cookie style responses
+
+**Please type the number (1-28) of your preferred personality:**`);
+
+    return { embed };
   }
 
   static createRelationshipSelect() {
@@ -281,35 +359,50 @@ class SetupUI {
     return { embed, component: select };
   }
 
-  static createCharacteristicSelect() {
+  static createMBTISelect() {
     const embed = new EmbedBuilder()
       .setColor(0xFF1493)
-      .setTitle('✨ Step 7: Characteristics (Optional)')
-      .setDescription(`Choose up to 5 characteristics for your companion:
+      .setTitle('🧠 Step 7: MBTI Personality Traits (Optional)')
+      .setDescription(`Choose your companion's MBTI personality type:
       
-**Categories:** Physical traits, hair, eyes, style, personality, hobbies
+**Analysts:**
+• INTJ - The Architect • INTP - The Thinker
+• ENTJ - The Commander • ENTP - The Debater
+
+**Diplomats:**
+• INFJ - The Advocate • INFP - The Mediator
+• ENFJ - The Protagonist • ENFP - The Campaigner
+
+**Sentinels:**
+• ISTJ - The Logistician • ISFJ - The Protector
+• ESTJ - The Executive • ESFJ - The Consul
+
+**Explorers:**
+• ISTP - The Virtuoso • ISFP - The Adventurer
+• ESTP - The Entrepreneur • ESFP - The Entertainer
       
 You can skip this step if you prefer a surprise!`);
 
-    const characteristics = CHARACTERISTICS.slice(0, 25).map(char => ({
-      label: `${char.category}: ${char.label}`,
-      value: char.value
+    const mbtiOptions = MBTI_TRAITS.map(trait => ({
+      label: trait.label,
+      value: trait.value,
+      description: trait.description
     }));
 
     const select = new ActionRowBuilder()
       .addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId('select_characteristics')
-          .setPlaceholder('Choose characteristics (max 5)...')
-          .setMaxValues(5)
+          .setCustomId('select_mbti')
+          .setPlaceholder('Choose MBTI type (optional)...')
+          .setMaxValues(1)
           .setMinValues(0)
-          .addOptions(characteristics)
+          .addOptions(mbtiOptions)
       );
 
     const buttons = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('skip_characteristics')
+          .setCustomId('skip_mbti')
           .setLabel('Skip This Step')
           .setStyle(ButtonStyle.Secondary)
           .setEmoji('⏭️')
@@ -368,7 +461,7 @@ You can skip this step if you prefer a surprise!`);
         { name: '💖 Relationship', value: persona.relationship || 'Friend', inline: true },
         { name: '🎂 Age', value: persona.ageRange || '21-25', inline: true },
         { name: '🔒 Privacy', value: persona.privacySetting || 'Public', inline: true },
-        { name: '✨ Characteristics', value: persona.characteristics?.length > 0 ? persona.characteristics.join(', ') : 'Surprise me!', inline: false }
+        { name: '🧠 MBTI Type', value: persona.mbtiType ? MBTI_TRAITS.find(t => t.value === persona.mbtiType)?.label || persona.mbtiType.toUpperCase() : 'Surprise me!', inline: false }
       )
       .setFooter({ text: 'Click "Create Companion" to finalize, or "Start Over" to begin again' });
 
@@ -466,7 +559,7 @@ You can skip this step if you prefer a surprise!`);
         { name: '🗣️ Language', value: persona.language, inline: true },
         { name: '👤 Gender', value: persona.gender, inline: true },
         { name: '🎂 Age', value: persona.age.toString(), inline: true },
-        { name: '🎭 Personality', value: persona.personality.replace(/_/g, ' '), inline: true },
+        { name: '🎭 Personality', value: getPersonalityDisplayName(persona.personality), inline: true },
         { name: '🔐 Privacy Mode', value: privacyLabel, inline: true },
         { name: '💬 Total Chats', value: stats ? stats.totalMessages.toString() : '0', inline: true }
       );
@@ -494,10 +587,11 @@ You can skip this step if you prefer a surprise!`);
       });
     }
 
-    if (persona.characteristics && persona.characteristics.length > 0) {
+    if (persona.mbtiType) {
+      const mbtiTrait = MBTI_TRAITS.find(trait => trait.value === persona.mbtiType);
       embed.addFields({
-        name: '✨ Characteristics',
-        value: persona.characteristics.join('\n'),
+        name: '🧠 MBTI Type',
+        value: mbtiTrait ? mbtiTrait.label : persona.mbtiType.toUpperCase(),
         inline: false
       });
     }
@@ -547,7 +641,11 @@ module.exports = {
   PRIVACY_OPTIONS,
   GENDERS,
   PERSONALITIES,
+  PERSONALITY_CATEGORIES,
+  PERSONALITY_NUMBER_MAP,
+  getPersonalityByNumber,
+  getPersonalityDisplayName,
   RELATIONSHIP_TYPES,
   AGE_RANGES,
-  CHARACTERISTICS
+  MBTI_TRAITS
 };

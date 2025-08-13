@@ -28,7 +28,7 @@ const userPersonaSchema = new mongoose.Schema({
     gender: {
       type: String,
       required: true,
-      enum: ['male', 'female', 'non-binary', 'other']
+      enum: ['male', 'female']
     },
     age: {
       type: Number,
@@ -40,7 +40,10 @@ const userPersonaSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    characteristics: [String],
+    mbtiType: {
+      type: String,
+      required: false
+    },
     privacySetting: {
       type: String,
       required: true,

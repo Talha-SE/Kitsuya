@@ -1,5 +1,5 @@
 const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const { SetupUI, LANGUAGES, PRIVACY_OPTIONS, GENDERS, PERSONALITIES, CHARACTERISTICS } = require('../utils/setupUI');
+const { SetupUI, LANGUAGES, PRIVACY_OPTIONS, GENDERS, PERSONALITIES, MBTI_TRAITS, getPersonalityByNumber, getPersonalityDisplayName } = require('../utils/setupUI');
 const DatabaseService = require('../services/databaseService');
 const PrivateChannelService = require('../services/privateChannelService');
 const { UserPersona, ChatMessage } = require('../models/User');
@@ -45,12 +45,12 @@ module.exports = {
           });
         }
         
-        const { embed, component } = SetupUI.createLanguageSelect();
+        const { embed } = SetupUI.createLanguageInput();
         userSetupData.set(userId, { step: 'language' });
         
         await interaction.reply({
           embeds: [embed],
-          components: [component],
+          components: [],
           flags: [MessageFlags.Ephemeral]
         });
         return;
@@ -81,42 +81,68 @@ module.exports = {
 
       // Handle setup start button
       if (interaction.customId === 'start_setup') {
-        const { embed, component } = SetupUI.createLanguageSelect();
-        userSetupData.set(userId, { step: 'language' });
+        // Show language input modal
+        const modal = new ModalBuilder()
+          .setCustomId('language_modal')
+          .setTitle('🌍 Choose Language');
+
+        const languageInput = new TextInputBuilder()
+          .setCustomId('companion_language')
+          .setLabel('What language should your companion speak?')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(2)
+          .setMaxLength(30)
+          .setPlaceholder('e.g., English, Spanish, French, Japanese...')
+          .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(languageInput));
         
-        await interaction.update({
-          embeds: [embed],
-          components: [component]
-        });
+        await interaction.showModal(modal);
         return;
       }
 
-      // Handle language selection
-      if (interaction.customId === 'select_language') {
-        const language = interaction.values[0];
-        const languageLabel = LANGUAGES.find(l => l.value === language)?.label || language;
-        
-        userSetupData.set(userId, { 
-          step: 'name',
-          language: languageLabel.toLowerCase()
-        });
+      // Handle language modal submission
+      if (interaction.customId === 'language_modal') {
+        try {
+          const language = interaction.fields.getTextInputValue('companion_language').trim();
+          
+          // Validate language input
+          if (!language) {
+            await interaction.reply({
+              content: '❌ Language cannot be empty. Please enter a valid language.',
+              ephemeral: true
+            });
+            return;
+          }
+          
+          userSetupData.set(userId, { 
+            step: 'name',
+            language: language
+          });
 
-        const modal = new ModalBuilder()
-          .setCustomId('name_modal')
-          .setTitle('🏷️ Step 3: Choose a Name');
+          const modal = new ModalBuilder()
+            .setCustomId('name_modal')
+            .setTitle('💝 Step 2: Choose a Name');
 
-        const nameInput = new TextInputBuilder()
-          .setCustomId('companion_name')
-          .setLabel('What should your AI companion be called?')
-          .setStyle(TextInputStyle.Short)
-          .setMinLength(1)
-          .setMaxLength(30)
-          .setPlaceholder('Any name, any language: Alex, 愛子, محمد, Анна, 🌟Luna🌟...')
-          .setRequired(true);
+          const nameInput = new TextInputBuilder()
+            .setCustomId('companion_name')
+            .setLabel('What would you like to name your AI companion?')
+            .setStyle(TextInputStyle.Short)
+            .setMinLength(1)
+            .setMaxLength(30)
+            .setPlaceholder('Enter a name for your companion')
+            .setRequired(true);
 
-        modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
-        
-        await interaction.showModal(modal);
+          modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
+          
+          await interaction.showModal(modal);
+        } catch (error) {
+          console.error('Error in language modal submission:', error);
+          await interaction.reply({
+            content: '❌ An error occurred while processing your language choice. Please try again.',
+            ephemeral: true
+          });
+        }
         return;
       }
 
@@ -180,16 +206,87 @@ module.exports = {
           gender: gender
         });
 
-        const { embed, components } = SetupUI.createPersonalitySelect();
+        // Show personality modal for number input
+        const modal = new ModalBuilder()
+          .setCustomId('personality_modal')
+          .setTitle('🎭 Choose Your Personality');
+
+        const personalityInput = new TextInputBuilder()
+          .setCustomId('personality_number')
+          .setLabel('Enter the number of your preferred personality (1-28)')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(1)
+          .setMaxLength(2)
+          .setPlaceholder('Enter number (1-28)')
+          .setRequired(true);
+
+        // Create embed showing all personalities for reference
+        const embed = SetupUI.createPersonalitySelect().embed;
         
-        await interaction.update({
-          embeds: [embed],
-          components: components
-        });
+        modal.addComponents(new ActionRowBuilder().addComponents(personalityInput));
+        
+        await interaction.showModal(modal);
         return;
       }
 
-      // Handle personality selection
+      // Handle personality modal submission
+      if (interaction.customId === 'personality_modal') {
+        try {
+          const personalityNumber = parseInt(interaction.fields.getTextInputValue('personality_number'));
+          const currentData = userSetupData.get(userId);
+          
+          // Validate personality number
+          if (isNaN(personalityNumber) || personalityNumber < 1 || personalityNumber > 28) {
+            await interaction.reply({
+              content: '❌ Please enter a valid number between 1 and 28.',
+              ephemeral: true
+            });
+            return;
+          }
+          
+          // Get personality by number
+          const selectedPersonality = getPersonalityByNumber(personalityNumber);
+          if (!selectedPersonality) {
+            await interaction.reply({
+              content: '❌ Invalid personality number. Please choose a number between 1 and 28.',
+              ephemeral: true
+            });
+            return;
+          }
+          
+          userSetupData.set(userId, {
+            ...currentData,
+            personality: selectedPersonality.value
+          });
+
+          // Show age input modal
+          const modal = new ModalBuilder()
+            .setCustomId('age_modal')
+            .setTitle('🎂 Step 5: Set Age');
+
+          const ageInput = new TextInputBuilder()
+            .setCustomId('companion_age')
+            .setLabel('How old should your AI companion be?')
+            .setStyle(TextInputStyle.Short)
+            .setMinLength(2)
+            .setMaxLength(2)
+            .setPlaceholder('Enter age (18-99)')
+            .setRequired(true);
+
+          modal.addComponents(new ActionRowBuilder().addComponents(ageInput));
+          
+          await interaction.showModal(modal);
+        } catch (error) {
+          console.error('Error in personality modal submission:', error);
+          await interaction.reply({
+            content: '❌ An error occurred while processing your personality choice. Please try again.',
+            ephemeral: true
+          });
+        }
+        return;
+      }
+
+      // Handle personality selection (old method - keeping for compatibility)
       if (interaction.customId === 'select_personality') {
         const personality = interaction.values[0];
         const currentData = userSetupData.get(userId);
@@ -201,7 +298,7 @@ module.exports = {
 
         const modal = new ModalBuilder()
           .setCustomId('age_modal')
-          .setTitle('🎂 Step 6: Set Age');
+          .setTitle('🎂 Step 5: Set Age');
 
         const ageInput = new TextInputBuilder()
           .setCustomId('companion_age')
@@ -237,7 +334,7 @@ module.exports = {
           age: age
         });
 
-        const { embed, components } = SetupUI.createCharacteristicSelect();
+        const { embed, components } = SetupUI.createMBTISelect();
         
         await interaction.reply({
           embeds: [embed],
@@ -247,14 +344,14 @@ module.exports = {
         return;
       }
 
-      // Handle characteristics selection
-      if (interaction.customId === 'select_characteristics') {
-        const selectedValues = interaction.values || [];
+      // Handle MBTI selection
+      if (interaction.customId === 'select_mbti') {
+        const selectedValue = interaction.values[0];
         const currentData = userSetupData.get(userId);
         
         userSetupData.set(userId, {
           ...currentData,
-          characteristics: selectedValues
+          mbtiType: selectedValue
         });
 
         const { embed, component } = SetupUI.createPrivacySelect();
@@ -266,13 +363,13 @@ module.exports = {
         return;
       }
 
-      // Handle skip characteristics
-      if (interaction.customId === 'skip_characteristics') {
+      // Handle skip MBTI
+      if (interaction.customId === 'skip_mbti') {
         const currentData = userSetupData.get(userId);
         
         userSetupData.set(userId, {
           ...currentData,
-          characteristics: []
+          mbtiType: null
         });
 
         const { embed, component } = SetupUI.createPrivacySelect();
@@ -296,7 +393,7 @@ module.exports = {
           gender: currentData.gender,
           personality: currentData.personality,
           age: currentData.age,
-          characteristics: currentData.characteristics || [],
+          mbtiType: currentData.mbtiType || null,
           privacySetting: privacySetting
         };
 
@@ -317,9 +414,9 @@ module.exports = {
               { name: '🎂 Age', value: personaData.age.toString(), inline: true },
               { name: '🗣️ Language', value: personaData.language, inline: true },
               { name: '🔒 Privacy', value: privacySetting, inline: true },
-              { name: '✨ Characteristics', value: personaData.characteristics.length > 0 
-                ? personaData.characteristics.slice(0, 3).join(', ') + (personaData.characteristics.length > 3 ? '...' : '')
-                : 'None selected', inline: true }
+              { name: '🧠 MBTI Type', value: personaData.mbtiType 
+                ? MBTI_TRAITS.find(t => t.value === personaData.mbtiType)?.label || personaData.mbtiType.toUpperCase()
+                : 'Not specified', inline: true }
             );
 
           // Add chat instruction based on privacy setting
@@ -486,6 +583,98 @@ module.exports = {
         return;
       }
 
+      // Handle personality change button
+      if (interaction.customId === 'change_personality_modal') {
+        const modal = new ModalBuilder()
+          .setCustomId('change_personality_number_modal')
+          .setTitle('🎭 Select New Personality');
+
+        const personalityInput = new TextInputBuilder()
+          .setCustomId('new_personality_number')
+          .setLabel('Enter personality number (1-28)')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(1)
+          .setMaxLength(2)
+          .setPlaceholder('Enter number (1-28)')
+          .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(personalityInput));
+        
+        await interaction.showModal(modal);
+        return;
+      }
+
+      // Handle personality change modal submission
+      if (interaction.customId === 'change_personality_number_modal') {
+        try {
+          const personalityNumber = parseInt(interaction.fields.getTextInputValue('new_personality_number'));
+          
+          // Validate personality number
+          if (isNaN(personalityNumber) || personalityNumber < 1 || personalityNumber > 28) {
+            await interaction.reply({
+              content: '❌ Please enter a valid number between 1 and 28.',
+              ephemeral: true
+            });
+            return;
+          }
+          
+          // Get personality by number
+          const selectedPersonality = getPersonalityByNumber(personalityNumber);
+          if (!selectedPersonality) {
+            await interaction.reply({
+              content: '❌ Invalid personality number. Please choose a number between 1 and 28.',
+              ephemeral: true
+            });
+            return;
+          }
+
+          const userId = interaction.user.id;
+          const guildId = interaction.guildId;
+          
+          // Get current persona
+          const persona = await db.getUserPersona(userId, guildId);
+          if (!persona) {
+            await interaction.reply({
+              content: '❌ You don\'t have an AI companion yet! Use `/start` to create one.',
+              ephemeral: true
+            });
+            return;
+          }
+
+          // Update personality
+          const oldPersonality = getPersonalityDisplayName(persona.persona.personality);
+          persona.persona.personality = selectedPersonality.value;
+          persona.lastUpdated = new Date();
+          await persona.save();
+          
+          const newPersonalityLabel = getPersonalityDisplayName(selectedPersonality.value);
+
+          const successEmbed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('✅ Personality Changed!')
+            .setDescription(`**${persona.persona.name}**'s personality has been updated!`)
+            .addFields(
+              { name: '📋 Previous Personality', value: oldPersonality, inline: true },
+              { name: '🆕 New Personality', value: newPersonalityLabel, inline: true }
+            )
+            .setFooter({ text: 'Your companion will now behave according to their new personality!' });
+
+          await interaction.reply({
+            embeds: [successEmbed],
+            ephemeral: true
+          });
+          
+          console.log(`Personality changed for ${interaction.user.username} (${userId}): ${oldPersonality} → ${newPersonalityLabel}`);
+        } catch (error) {
+          console.error('Error in personality change modal submission:', error);
+          await interaction.reply({
+            content: '❌ An error occurred while changing your personality. Please try again.',
+            ephemeral: true
+          });
+        }
+        return;
+      }
+
       // Handle personality change selection
       if (interaction.customId.startsWith('change_personality_')) {
         try {
@@ -505,12 +694,12 @@ module.exports = {
           }
           
           // Update personality
-          const oldPersonality = persona.persona.personality.replace(/_/g, ' ');
+          const oldPersonality = getPersonalityDisplayName(persona.persona.personality);
           persona.persona.personality = newPersonality;
           persona.lastUpdated = new Date();
           await persona.save();
           
-          const newPersonalityLabel = newPersonality.replace(/_/g, ' ');
+          const newPersonalityLabel = getPersonalityDisplayName(newPersonality);
           
           const successEmbed = new EmbedBuilder()
             .setColor(0x00FF00)
