@@ -2,9 +2,12 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 
 module.exports = {
   name: 'guildCreate',
-  async execute(guild, client) {
+  async execute(guild) {
     try {
       console.log(`Bot joined new guild: ${guild.name} (${guild.id})`);
+      
+      // Get the client from the guild
+      const client = guild.client;
       
       // Try to find the person who invited the bot
       let inviter = null;
@@ -46,10 +49,10 @@ module.exports = {
             inline: false
           }
         )
-        .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
+        .setThumbnail(client?.user?.displayAvatarURL({ dynamic: true }) || null)
         .setFooter({ 
           text: 'AI Companions • Your Perfect Chat Partner',
-          iconURL: client.user.displayAvatarURL({ dynamic: true })
+          iconURL: client?.user?.displayAvatarURL({ dynamic: true }) || null
         })
         .setTimestamp();
 
@@ -96,11 +99,19 @@ module.exports = {
 
 async function sendInChannel(guild, embed, buttons) {
   try {
+    // Ensure we have the bot's guild member
+    const botMember = guild.members.me || await guild.members.fetchMe();
+    
+    if (!botMember) {
+      console.log('Could not fetch bot member information');
+      return;
+    }
+    
     // Try to find a general channel to send the welcome message
     const channels = guild.channels.cache
       .filter(channel => 
         channel.type === 0 && // Text channel
-        channel.permissionsFor(guild.members.me).has(['SendMessages', 'EmbedLinks']) &&
+        channel.permissionsFor(botMember).has(['SendMessages', 'EmbedLinks']) &&
         (channel.name.includes('general') || 
          channel.name.includes('welcome') || 
          channel.name.includes('bot') ||
@@ -114,7 +125,7 @@ async function sendInChannel(guild, embed, buttons) {
       targetChannel = guild.channels.cache
         .filter(channel => 
           channel.type === 0 && 
-          channel.permissionsFor(guild.members.me).has(['SendMessages', 'EmbedLinks'])
+          channel.permissionsFor(botMember).has(['SendMessages', 'EmbedLinks'])
         )
         .first();
     }

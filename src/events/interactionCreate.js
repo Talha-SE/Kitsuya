@@ -1,4 +1,4 @@
-const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, MessageFlags, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { SetupUI, LANGUAGES, PRIVACY_OPTIONS, GENDERS, PERSONALITIES, MBTI_TRAITS, getPersonalityByNumber, getPersonalityDisplayName } = require('../utils/setupUI');
 const DatabaseService = require('../services/databaseService');
 const PrivateChannelService = require('../services/privateChannelService');
@@ -106,11 +106,21 @@ module.exports = {
         try {
           const language = interaction.fields.getTextInputValue('companion_language').trim();
           
-          // Validate language input
+          // Enhanced language validation - allow Unicode characters, emojis, and various scripts
           if (!language) {
             await interaction.reply({
               content: '❌ Language cannot be empty. Please enter a valid language.',
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
+            });
+            return;
+          }
+          
+          // Check length (using Unicode-aware length counting)
+          const languageLength = [...language].length; // Counts Unicode characters properly
+          if (languageLength > 50) {
+            await interaction.reply({
+              content: `❌ Language name too long. Please use a shorter name (max 50 characters). Your input has ${languageLength} characters.`,
+              flags: [MessageFlags.Ephemeral]
             });
             return;
           }
@@ -124,24 +134,47 @@ module.exports = {
             .setCustomId('name_modal')
             .setTitle('💝 Step 2: Choose a Name');
 
-          const nameInput = new TextInputBuilder()
-            .setCustomId('companion_name')
-            .setLabel('What would you like to name your AI companion?')
-            .setStyle(TextInputStyle.Short)
-            .setMinLength(1)
-            .setMaxLength(30)
-            .setPlaceholder('Enter a name for your companion')
-            .setRequired(true);
-
-          modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
+        const nameInput = new TextInputBuilder()
+          .setCustomId('companion_name')
+          .setLabel('What should your companion be called?')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(1)
+          .setMaxLength(30)
+          .setPlaceholder('Enter a name for your companion')
+          .setRequired(true);
           
-          await interaction.showModal(modal);
+        modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
+          
+          // For modal chaining, we need to defer and then send a followUp
+          await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+          
+          // Send modal as a followup
+          const followUpMessage = await interaction.followUp({
+            content: 'Please continue with the setup...',
+            flags: [MessageFlags.Ephemeral]
+          });
+          
+          // We'll show the modal via button interaction instead
+          const button = new ButtonBuilder()
+            .setCustomId('continue_to_name')
+            .setLabel('Continue to Name Setup')
+            .setStyle(ButtonStyle.Primary);
+            
+          const row = new ActionRowBuilder().addComponents(button);
+          
+          await interaction.editReply({
+            content: `✅ Language set to: **${language}**\n\nClick below to continue with naming your companion:`,
+            components: [row],
+            flags: [MessageFlags.Ephemeral]
+          });
         } catch (error) {
           console.error('Error in language modal submission:', error);
-          await interaction.reply({
-            content: '❌ An error occurred while processing your language choice. Please try again.',
-            ephemeral: true
-          });
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+              content: '❌ An error occurred while processing your language choice. Please try again.',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
         }
         return;
       }
@@ -188,11 +221,44 @@ module.exports = {
           });
         } catch (error) {
           console.error('Error in name modal submission:', error);
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+              content: '❌ An error occurred while processing your name. Please try again with a simpler name.',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
+        }
+        return;
+      }
+
+      // Handle continue to name button
+      if (interaction.customId === 'continue_to_name') {
+        const currentData = userSetupData.get(userId);
+        
+        if (!currentData || !currentData.language) {
           await interaction.reply({
-            content: '❌ An error occurred while processing your name. Please try again with a simpler name.',
+            content: '❌ Setup data not found. Please start over with /start.',
             flags: [MessageFlags.Ephemeral]
           });
+          return;
         }
+        
+        const modal = new ModalBuilder()
+          .setCustomId('name_modal')
+          .setTitle('💝 Step 2: Choose a Name');
+
+        const nameInput = new TextInputBuilder()
+          .setCustomId('companion_name')
+          .setLabel('What should your companion be called?')
+          .setStyle(TextInputStyle.Short)
+          .setMinLength(1)
+          .setMaxLength(30)
+          .setPlaceholder('Enter a name for your companion')
+          .setRequired(true);
+          
+        modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
+        
+        await interaction.showModal(modal);
         return;
       }
 
@@ -213,7 +279,7 @@ module.exports = {
 
         const personalityInput = new TextInputBuilder()
           .setCustomId('personality_number')
-          .setLabel('Enter the number of your preferred personality (1-28)')
+          .setLabel('Enter personality number (1-28)')
           .setStyle(TextInputStyle.Short)
           .setMinLength(1)
           .setMaxLength(2)
@@ -239,7 +305,7 @@ module.exports = {
           if (isNaN(personalityNumber) || personalityNumber < 1 || personalityNumber > 28) {
             await interaction.reply({
               content: '❌ Please enter a valid number between 1 and 28.',
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
             return;
           }
@@ -249,7 +315,7 @@ module.exports = {
           if (!selectedPersonality) {
             await interaction.reply({
               content: '❌ Invalid personality number. Please choose a number between 1 and 28.',
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
             return;
           }
@@ -266,7 +332,7 @@ module.exports = {
 
           const ageInput = new TextInputBuilder()
             .setCustomId('companion_age')
-            .setLabel('How old should your AI companion be?')
+            .setLabel('How old should your companion be?')
             .setStyle(TextInputStyle.Short)
             .setMinLength(2)
             .setMaxLength(2)
@@ -278,10 +344,12 @@ module.exports = {
           await interaction.showModal(modal);
         } catch (error) {
           console.error('Error in personality modal submission:', error);
-          await interaction.reply({
-            content: '❌ An error occurred while processing your personality choice. Please try again.',
-            ephemeral: true
-          });
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+              content: '❌ An error occurred while processing your personality choice. Please try again.',
+              flags: [MessageFlags.Ephemeral]
+            });
+          }
         }
         return;
       }
@@ -302,7 +370,7 @@ module.exports = {
 
         const ageInput = new TextInputBuilder()
           .setCustomId('companion_age')
-          .setLabel('How old should your AI companion be?')
+          .setLabel('How old should your companion be?')
           .setStyle(TextInputStyle.Short)
           .setMinLength(2)
           .setMaxLength(2)
