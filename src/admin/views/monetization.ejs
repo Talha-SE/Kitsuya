@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monetization - AI Companion Bot Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            z-index: 1000;
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 15px 20px;
+            border-radius: 0;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+        .restriction-card {
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .restriction-card:hover {
+            transform: translateX(5px);
+        }
+        .restriction-card.user-restriction {
+            border-left-color: #e74c3c;
+        }
+        .restriction-card.server-restriction {
+            border-left-color: #f39c12;
+        }
+        .brand-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            padding: 20px;
+            display: block;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .online-indicator {
+            width: 12px;
+            height: 12px;
+            background: #2ecc71;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .usage-progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .premium-badge {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .add-restriction-form {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+        .restriction-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <a href="/dashboard" class="brand-logo">
+            <i class="fas fa-robot me-2"></i>
+            AI Bot Admin
+        </a>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="/dashboard">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/messaging">
+                    <i class="fas fa-envelope me-2"></i>
+                    Messaging
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/analytics">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Analytics
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="/monetization">
+                    <i class="fas fa-dollar-sign me-2"></i>
+                    Monetization
+                </a>
+            </li>
+            <li class="nav-item mt-3">
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt me-2"></i>
+                    Logout
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navigation -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <h4 class="mb-0 fw-bold text-dark">
+                    Monetization & Restrictions
+                </h4>
+                <div class="d-flex align-items-center">
+                    <span class="online-indicator"></span>
+                    <span class="me-3">Bot Online</span>
+                    <div class="dropdown">
+                        <a class="btn btn-light dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            <%= admin.username %>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/logout">
+                                <i class="fas fa-sign-out-alt me-2"></i>
+                                Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Restriction Stats -->
+        <div class="restriction-stats">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h3 class="mb-0"><%= restrictions.length %></h3>
+                        <small>Total Restrictions</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h3 class="mb-0"><%= restrictions.filter(r => r.type === 'user').length %></h3>
+                        <small>User Restrictions</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h3 class="mb-0"><%= restrictions.filter(r => r.type === 'server').length %></h3>
+                        <small>Server Restrictions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Restriction Form -->
+        <div class="add-restriction-form">
+            <h5 class="mb-4">
+                <i class="fas fa-plus-circle me-2 text-primary"></i>
+                Add New Restriction
+            </h5>
+            
+            <form id="restrictionForm">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Restriction Type</label>
+                            <select class="form-select" id="restrictionType" name="type" required>
+                                <option value="">Select Type</option>
+                                <option value="user">
+                                    <i class="fas fa-user"></i> User Restriction
+                                </option>
+                                <option value="server">
+                                    <i class="fas fa-server"></i> Server Restriction
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Target ID</label>
+                            <input type="text" class="form-control" id="targetId" name="targetId" 
+                                   placeholder="User ID or Server ID" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Target Name</label>
+                            <input type="text" class="form-control" id="targetName" name="targetName" 
+                                   placeholder="Username or Server Name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Daily Message Limit</label>
+                            <input type="number" class="form-control" id="dailyLimit" name="dailyMessageLimit" 
+                                   placeholder="10" min="1" max="1000" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Reason for Restriction</label>
+                            <input type="text" class="form-control" id="reason" name="reason" 
+                                   placeholder="e.g., Excessive usage, Premium tier required">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Payment Link</label>
+                            <input type="url" class="form-control" id="paymentLink" name="paymentLink" 
+                                   placeholder="https://your-payment-portal.com" 
+                                   value="https://your-payment-portal.com">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-warning btn-lg">
+                    <i class="fas fa-ban me-2"></i>
+                    Add Restriction
+                </button>
+            </form>
+        </div>
+
+        <!-- Active Restrictions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2 text-info"></i>
+                    Active Restrictions
+                </h5>
+            </div>
+            <div class="card-body">
+                <% if (restrictions.length === 0) { %>
+                    <p class="text-muted text-center py-4">No active restrictions</p>
+                <% } else { %>
+                    <div class="row">
+                        <% restrictions.forEach(restriction => { %>
+                            <div class="col-md-6 mb-3">
+                                <div class="card restriction-card <%= restriction.type %>-restriction">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="card-title mb-1">
+                                                    <i class="fas fa-<%= restriction.type === 'user' ? 'user' : 'server' %> me-2"></i>
+                                                    <%= restriction.targetName %>
+                                                </h6>
+                                                <small class="text-muted">ID: <%= restriction.targetId %></small>
+                                            </div>
+                                            <span class="premium-badge">
+                                                <%= restriction.type.toUpperCase() %>
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between">
+                                                <small>Usage Today</small>
+                                                <small><%= restriction.currentUsage %>/<%= restriction.dailyMessageLimit %></small>
+                                            </div>
+                                            <div class="progress usage-progress">
+                                                <div class="progress-bar <%= restriction.progressClass %>" 
+                                                     data-width="<%= restriction.usagePercent %>">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <% if (restriction.reason) { %>
+                                            <p class="card-text small text-muted mb-2">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                <%= restriction.reason %>
+                                            </p>
+                                        <% } %>
+
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                Added by <%= restriction.restrictedBy %><br>
+                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                <%= new Date(restriction.createdAt).toLocaleDateString() %>
+                                            </small>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-primary me-1" 
+                                                        onclick="editRestriction('<%= restriction._id %>')">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success me-1" 
+                                                        onclick="resetUsage('<%= restriction._id %>')">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="removeRestriction('<%= restriction._id %>', '<%= restriction.targetName %>')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <% if (restriction.currentUsage >= restriction.dailyMessageLimit) { %>
+                                            <div class="alert alert-warning mt-2 mb-0">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong>Limit Reached!</strong> 
+                                                <a href="<%= restriction.paymentLink %>" target="_blank" class="alert-link">
+                                                    Payment Link
+                                                    <i class="fas fa-external-link-alt ms-1"></i>
+                                                </a>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Set progress bar widths on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-width]').forEach(function(element) {
+                const width = element.getAttribute('data-width');
+                element.style.width = width + '%';
+            });
+        });
+
+        document.getElementById('restrictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding Restriction...';
+            
+            try {
+                const response = await fetch('/add-restriction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Restriction added successfully!');
+                    this.reset();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error adding restriction: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-ban me-2"></i>Add Restriction';
+            }
+        });
+
+        async function removeRestriction(restrictionId, targetName) {
+            if (!confirm(`Are you sure you want to remove the restriction for "${targetName}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/remove-restriction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ restrictionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Restriction removed successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error removing restriction: ' + error.message);
+            }
+        }
+
+        async function resetUsage(restrictionId) {
+            if (!confirm('Are you sure you want to reset the usage count for this restriction?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/reset-usage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ restrictionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Usage count reset successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error occurred'));
+                    console.error('Reset usage error:', result);
+                }
+            } catch (error) {
+                console.error('Reset usage error:', error);
+                alert('Error resetting usage: ' + error.message);
+            }
+        }
+
+        function editRestriction(restrictionId) {
+            alert('Edit functionality coming soon!');
+        }
+
+        // Auto-refresh every 30 seconds to update usage counts
+        setInterval(() => {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

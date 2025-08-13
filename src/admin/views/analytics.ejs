@@ -1,0 +1,401 @@
+<%- include('layout', { title: 'Analytics Dashboard' }) %>
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">📊 Analytics Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+      <div class="btn-group me-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshAnalytics()">
+          <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Period Selector -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Time Period</h5>
+        </div>
+        <div class="card-body">
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="timePeriod" id="day" value="day" checked>
+            <label class="btn btn-outline-primary" for="day">Today</label>
+            
+            <input type="radio" class="btn-check" name="timePeriod" id="week" value="week">
+            <label class="btn btn-outline-primary" for="week">7 Days</label>
+            
+            <input type="radio" class="btn-check" name="timePeriod" id="month" value="month">
+            <label class="btn btn-outline-primary" for="month">30 Days</label>
+            
+            <input type="radio" class="btn-check" name="timePeriod" id="all" value="all">
+            <label class="btn btn-outline-primary" for="all">All Time</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Overview Cards -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                Total Messages
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalMessages">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-comments fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                Active Users
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeUsers">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-users fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                Active Servers
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeServers">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-server fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                Restricted Users
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="restrictedUsers">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-ban fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row">
+    <!-- Message Activity Chart -->
+    <div class="col-xl-8 col-lg-7">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+          <h6 class="m-0 font-weight-bold text-primary">Message Activity Over Time</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-area">
+            <canvas id="messageChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage Distribution -->
+    <div class="col-xl-4 col-lg-5">
+      <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+          <h6 class="m-0 font-weight-bold text-primary">Usage Distribution</h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-pie pt-4 pb-2">
+            <canvas id="usageChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Users and Servers -->
+  <div class="row">
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">Top Active Users</h6>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped" id="topUsersTable">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Messages</th>
+                  <th>Last Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="3" class="text-center">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Loading...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary">Top Active Servers</h6>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped" id="topServersTable">
+              <thead>
+                <tr>
+                  <th>Server</th>
+                  <th>Messages</th>
+                  <th>Users</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="3" class="text-center">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Loading...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let messageChart = null;
+let usageChart = null;
+
+// Initialize analytics
+document.addEventListener('DOMContentLoaded', function() {
+  loadAnalyticsData();
+  
+  // Time period change handler
+  document.querySelectorAll('input[name="timePeriod"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+      loadAnalyticsData();
+    });
+  });
+});
+
+function getSelectedTimePeriod() {
+  return document.querySelector('input[name="timePeriod"]:checked').value;
+}
+
+function refreshAnalytics() {
+  loadAnalyticsData();
+}
+
+async function loadAnalyticsData() {
+  const period = getSelectedTimePeriod();
+  
+  try {
+    // Show loading indicators
+    showLoadingIndicators();
+    
+    // Fetch analytics data
+    const response = await fetch(`/api/analytics?period=${period}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      updateOverviewCards(data.overview);
+      updateCharts(data.charts);
+      updateTables(data.tables);
+    } else {
+      showError('Failed to load analytics data');
+    }
+  } catch (error) {
+    console.error('Analytics error:', error);
+    showError('Error loading analytics data');
+  }
+}
+
+function showLoadingIndicators() {
+  document.getElementById('totalMessages').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+  document.getElementById('activeUsers').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+  document.getElementById('activeServers').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+  document.getElementById('restrictedUsers').innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+}
+
+function updateOverviewCards(overview) {
+  document.getElementById('totalMessages').textContent = overview.totalMessages || 0;
+  document.getElementById('activeUsers').textContent = overview.activeUsers || 0;
+  document.getElementById('activeServers').textContent = overview.activeServers || 0;
+  document.getElementById('restrictedUsers').textContent = overview.restrictedUsers || 0;
+}
+
+function updateCharts(chartData) {
+  // Message Activity Chart
+  if (messageChart) {
+    messageChart.destroy();
+  }
+  
+  const ctx1 = document.getElementById('messageChart').getContext('2d');
+  messageChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: chartData.messageActivity?.labels || [],
+      datasets: [{
+        label: 'Messages',
+        data: chartData.messageActivity?.data || [],
+        borderColor: 'rgb(54, 162, 235)',
+        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  // Usage Distribution Chart
+  if (usageChart) {
+    usageChart.destroy();
+  }
+  
+  const ctx2 = document.getElementById('usageChart').getContext('2d');
+  usageChart = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Free Users', 'Restricted Users', 'Premium Users'],
+      datasets: [{
+        data: chartData.usageDistribution || [0, 0, 0],
+        backgroundColor: [
+          'rgb(75, 192, 192)',
+          'rgb(255, 99, 132)',
+          'rgb(255, 205, 86)'
+        ]
+      }]
+    },
+    options: {
+      responsive: true
+    }
+  });
+}
+
+function updateTables(tableData) {
+  // Top Users Table
+  const topUsersBody = document.querySelector('#topUsersTable tbody');
+  topUsersBody.innerHTML = '';
+  
+  if (tableData.topUsers && tableData.topUsers.length > 0) {
+    tableData.topUsers.forEach(user => {
+      const row = topUsersBody.insertRow();
+      row.innerHTML = `
+        <td>${user.username || user.userId}</td>
+        <td><span class="badge bg-primary">${user.messageCount}</span></td>
+        <td>${new Date(user.lastActive).toLocaleDateString()}</td>
+      `;
+    });
+  } else {
+    topUsersBody.innerHTML = '<tr><td colspan="3" class="text-center">No data available</td></tr>';
+  }
+
+  // Top Servers Table
+  const topServersBody = document.querySelector('#topServersTable tbody');
+  topServersBody.innerHTML = '';
+  
+  if (tableData.topServers && tableData.topServers.length > 0) {
+    tableData.topServers.forEach(server => {
+      const row = topServersBody.insertRow();
+      row.innerHTML = `
+        <td>${server.serverName || server.serverId}</td>
+        <td><span class="badge bg-success">${server.messageCount}</span></td>
+        <td><span class="badge bg-info">${server.userCount}</span></td>
+      `;
+    });
+  } else {
+    topServersBody.innerHTML = '<tr><td colspan="3" class="text-center">No data available</td></tr>';
+  }
+}
+
+function showError(message) {
+  // You can implement a toast or alert system here
+  console.error(message);
+  alert(message);
+}
+</script>
+
+<style>
+.border-left-primary {
+  border-left: 4px solid #4e73df !important;
+}
+
+.border-left-success {
+  border-left: 4px solid #1cc88a !important;
+}
+
+.border-left-info {
+  border-left: 4px solid #36b9cc !important;
+}
+
+.border-left-warning {
+  border-left: 4px solid #f6c23e !important;
+}
+
+.text-gray-800 {
+  color: #5a5c69 !important;
+}
+
+.text-gray-300 {
+  color: #dddfeb !important;
+}
+</style>

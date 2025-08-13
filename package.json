@@ -1,0 +1,45 @@
+{
+  "name": "discord-ai-chatbot",
+  "version": "1.0.0",
+  "description": "Discord AI chatbot with personality customization and MongoDB integration",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js",
+    "setup": "node setup.js",
+    "validate": "node validate.js",
+    "quickstart": "node quickstart.js",
+    "demo": "node demo.js",
+    "admin": "node src/admin/server.js",
+    "start-all": "concurrently \"npm run start\" \"npm run admin\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "ai",
+    "chatbot",
+    "mistral",
+    "mongodb"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.2",
+    "moment": "^2.30.1",
+    "mongoose": "^8.0.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.0.2"
+  }
+}
